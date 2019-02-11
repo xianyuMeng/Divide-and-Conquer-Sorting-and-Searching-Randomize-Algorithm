@@ -1,0 +1,232 @@
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <random>
+
+
+using namespace std;
+
+
+struct node{
+    int v;
+    struct node* next;
+    node(int v) : v(v) { this->next = nullptr;}
+    node(int v, node* next) : v(v), next(next){}
+    node() { this->v = 0; this->next = nullptr;}
+};
+
+struct Edge{
+    struct node* src;
+    struct node* dst;
+    Edge() { this->src = nullptr; this->dst = nullptr;}
+    Edge(node* src, node* dst) : src(src), dst(dst) {}
+};
+
+
+struct Graph{
+    vector<node*> V;
+    vector<Edge> E;
+    int Vnum = 0;
+    int Enum = 0;
+    Graph(int size){this->V.reserve(size);}
+    Graph() {}
+};
+
+void printGraph(Graph& g)
+{
+    for(auto& p : g.V)
+    {
+        for(node* cur = p; cur != nullptr; cur = cur->next)
+        {
+            fprintf(stdout, "%d ", cur->v);
+        }
+        fprintf(stdout, "\n");
+    }
+}
+void printEdge(Graph& g)
+{
+    for(auto&p : g.E)
+    {
+        if(p.src != nullptr && p.dst != nullptr)
+        {
+            fprintf(stdout, "src %d dst %d\n", p.src->v, p.dst->v);
+        }
+    }
+}
+
+void destroyGraph(Graph& g)
+{
+    for(auto& p : g.V)
+    {
+        if(p)
+        {
+            node* cur = p;
+            while(cur)
+            {
+                node* next = cur->next;
+                delete cur;
+                cur = next;
+            }
+        }
+    }
+}
+
+int  contract(Graph& g)
+{
+    while(g.Vnum > 2)
+    {
+        // uniform random pick one edge
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0,g.Enum-1);
+        int e_ind = dis(gen);
+        fprintf(stdout, "edge ind : %d\n", e_ind);
+        Edge e = g.E[e_ind];
+        //merge / contract edge
+        if(g.V[e.src->v] != nullptr && g.V[e.dst->v] != nullptr && e.src->v != e.dst->v)
+        {
+            //fprintf(stdout, "src %d dst %d\n", e.src->v, e.dst->v);
+
+            node* src = e.src;
+            node* dst = e.dst;
+            int v_src = src->v;
+            int v_dst = dst->v;
+            node* head = g.V[dst->v];
+            //src is the super node
+            g.Vnum--;
+            for(auto& p : g.E)
+            {
+                if(p.src->v == head->v)
+                {
+                    p.src->v = v_src;
+                }
+                if(p.dst->v == head->v)
+                {
+                    p.dst->v = v_src;
+                }
+            }
+            //printGraph(g);
+            //printEdge(g);
+
+            for(auto& p : g.V)
+            {
+                if(p && p->v != v_dst)
+                {
+                    node* cur = p->next;
+                    while(cur)
+                    {
+                        node* next = cur->next;
+                        if(cur->v == v_dst)
+                        {
+                            cur->v = v_src;
+                        }
+                        cur = next;
+                    }
+                }
+
+            }
+            //printGraph(g);
+
+            cout << "searching last element\n";
+            node* cur = g.V[v_src];
+            fprintf(stdout, "src %d\n", v_src);
+            if(cur == nullptr)
+            {
+
+            }
+            else
+            {
+                while(cur->next)
+                {
+                    fprintf(stdout, "%d ", cur->v);
+                    node* next = cur->next;
+                    cur = next;
+                }
+                fprintf(stdout, "\n");
+            }
+            //now cur is the last element
+            node* old_head = g.V[v_dst];
+            if (old_head)
+            {
+                cur->next = old_head->next;
+                g.V[v_dst] = nullptr;
+            }
+            //printGraph(g);
+            //printEdge(g);
+
+        }
+    }
+
+    int mincut = 0;
+    for(auto& p : g.V)
+    {
+        if(p)
+        {
+            node* cur = p->next;
+            int v_head = p->v;
+            while(cur)
+            {
+                node* next = cur->next;
+                if (cur->v != v_head)
+                {
+                    mincut++;
+                }
+                cur = next;
+            }
+        }
+    }
+    return mincut;
+}
+
+int main(int argc, char* argv[])
+{
+    Graph graph;
+    fstream in;
+    in.open(argv[1], fstream::in);
+    string str;
+    int cnt = 0;
+    if(in.is_open())
+    {
+        getline(in, str);
+        while(in)
+        {
+            stringstream s(str);
+            int number = 0;
+            vector<int> tmp;
+            while(s >> number)
+            {
+                tmp.push_back(number - 1);
+            }
+            /* the first element is vertex label */
+            tmp = vector<int>(tmp.begin() + 1, tmp.end());
+            sort(tmp.begin(), tmp.end());
+            node* cur = new node(cnt);
+            node* head = cur;
+            for(auto& p : tmp)
+            {
+                node* next = new node(p);
+                cur->next = next;
+                Edge e(head, next);
+                graph.E.push_back(e);
+                cur = next;
+            }
+            graph.V.push_back(head);
+            cnt++;
+            getline(in, str);
+        }
+    }
+    graph.Vnum = graph.V.size();
+    graph.Enum = graph.E.size();
+
+    in.close();
+
+    printGraph(graph);
+
+    int mincut = contract(graph);
+    fprintf(stdout, "mincut = %d\n", mincut/2);
+    destroyGraph(graph);
+
+    return 0;
+}

@@ -1,0 +1,103 @@
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <stdio.h>
+
+using namespace std;
+
+struct coord{
+    int i = 0;
+    int j = 0;
+    public:
+    coord(){this->i = 0;this->j = 0;}
+    coord(int i, int j) : i(i), j(j){}
+    inline bool operator < (const coord& r)
+    {
+        return (this->i < r.i && this->j < r.j);
+    }
+    inline bool is_corner(int N){
+        return this->i == 0 || this-> i == (N - 1)
+            || this->j == 0 || this-> j == (N - 1);
+    }
+};
+
+struct neighbor{
+    vector<int> stat;
+    neighbor(){stat = vector<int>(4,0);}
+    int sum()
+    {
+        return this->stat[0] + this->stat[1] + this->stat[2] +this-> stat[3];
+    }
+};
+template<typename T>
+neighbor compare(T***grid, coord& mid)
+{
+    neighbor res;
+    if((*grid)[mid.i][mid.j] < (*grid)[mid.i - 1][mid.j]) res.stat[0] = 1;
+    if((*grid)[mid.i][mid.j] < (*grid)[mid.i + 1][mid.j]) res.stat[1] = 1;
+    if((*grid)[mid.i][mid.j] < (*grid)[mid.i][mid.j - 1]) res.stat[2] = 1;
+    if((*grid)[mid.i][mid.j] < (*grid)[mid.i][mid.j + 1]) res.stat[3] = 1;
+    return res;
+}
+template<typename T>
+void local_minimum(T*** grid, coord upper, coord bottom, bool*** map, int N)
+{
+    if(upper < bottom)
+    {
+        coord tmp;
+        int mid_i = (upper.i + bottom.i) / 2;
+        int mid_j = (upper.j + bottom.j) / 2;
+        tmp.i = mid_i;tmp.j = mid_j;
+        neighbor res = compare<T>(grid, tmp);
+        if(res.sum() == 4) (*map)[tmp.i][tmp.j] = true;
+        if(res.stat[0] == 0) local_minimum<T>(grid, upper, coord(tmp.i - 1, tmp.j), map, N);
+        if(res.stat[1] == 0) local_minimum<T>(grid, coord(tmp.i + 1, tmp.j), bottom, map, N);
+        if(res.stat[2] == 0) local_minimum<T>(grid, coord(upper.i, tmp.j - 1), coord(tmp.i - 1, bottom.j), map, N);
+        if(res.stat[3] == 0) local_minimum<T>(grid, coord(tmp.i, upper.j), coord(bottom.i, tmp.j - 1), map, N);
+    }
+}
+
+void printMap(bool*** map, int N)
+{
+    for(int i = 0; i < N; ++i)
+    {
+        for(int j = 0; j < N; ++j)
+        {
+            fprintf(stdout, "%d ", (*map)[i][j]);
+        }
+        fprintf(stdout, "\n");
+    }
+}
+int main(int argc, char* argv[])
+{
+    fstream in;
+    in.open(argv[1], fstream::in);
+    int n = atoi(argv[2]);
+    int** grid = new int*[n];
+    bool** map = new bool*[n];
+    for(int i = 0; i < n; ++i)
+    {
+        grid[i] = new int[n]();
+        map[i] = new bool[n]();
+    }
+
+    for(int i = 0; i < n; ++i)
+    {
+        for(int j = 0; j < n; ++j)
+        {
+            in >> grid[i][j];
+            map[i][j] = false;
+        }
+    }
+
+    local_minimum<int>(&grid, coord(0, 0), coord(n, n), &map, n);
+    for(int i = 0; i < n; ++i)
+    {
+        delete[] grid[i];
+        delete[] map[i];
+    }
+    delete[] grid;
+    delete[] map;
+    in.close();
+    return 0;
+}
